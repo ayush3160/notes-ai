@@ -17,20 +17,18 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { MoveRightIcon } from "lucide-react";
+import { MoveRightIcon, Router } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { signIn } from "next-auth/react";
 import { AuthProvidersEnum } from "@/lib/auth";
+import { supabaseClient } from "@/lib/supabaseClient";
+import Cookies from "js-cookie";
+import { useRouter } from "next/navigation";
 
-const formSchema = z
-  .object({
-    email: z.string().min(2).max(50),
-    password: z.string().min(8).max(50),
-    confirmPassword: z.string().min(8).max(50),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-  });
+const formSchema = z.object({
+  email: z.string().min(2).max(50),
+  password: z.string().min(8).max(50),
+});
 
 export default function SignIn() {
   const form = useForm<z.infer<typeof formSchema>>({
@@ -38,12 +36,31 @@ export default function SignIn() {
     defaultValues: {
       email: "",
       password: "",
-      confirmPassword: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  const router = useRouter();
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      console.error("Error signing the user", error.message);
+      return;
+    }
+
+    const session = data.session;
+
+    Cookies.set("notes_session", JSON.stringify(session), {
+      expires: 7,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    router.push("/");
   }
 
   return (
@@ -61,7 +78,10 @@ export default function SignIn() {
       </p>
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit(onSubmit)(e);
+          }}
           className="space-y-4 flex flex-col gap-5 w-full mt-3"
         >
           <FormField

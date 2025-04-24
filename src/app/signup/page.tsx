@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { MoveRightIcon } from "lucide-react";
+import { MoveRightIcon, Router } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import { supabaseClient } from "@/lib/supabaseClient";
+import { useRouter } from "next/router";
 
 const formSchema = z
   .object({
@@ -40,8 +42,21 @@ export default function SignUp() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  const router = useRouter();
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const { error } = await supabaseClient.auth.signUp({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      console.error("Error signing up:", error.message);
+      alert(error.message);
+    } else {
+      alert("Sign-up successful! Please check your email for verification.");
+      router.push("/signin");
+    }
   }
 
   return (
